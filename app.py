@@ -4,7 +4,7 @@ from dashscope import MultiModalConversation
 from PIL import Image
 import os
 
-# 1. API 配置
+# 配置 API
 dashscope.api_key = st.secrets["DASHSCOPE_API_KEY"]
 
 st.set_page_config(page_title="中高考阅卷台", layout="wide")
@@ -25,50 +25,45 @@ if uploaded_file:
                 with open(temp_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                # 提示词：要求 AI 用【】进行强分隔
                 prompt = """
                 你是一位专业的中高考语文阅卷组长。请对作文进行分析。
-                必须严格按照以下格式输出（不要输出任何开场白）：
-                【分数统计】
-                | 维度 | 得分 |
-                |---|---|
-                | 内容 | ... |
-                | 表达 | ... |
-                | 发展 | ... |
-                【段落批注】
-                1. 第一段：...
-                2. 第二段：...
-                【文章导图】
-                (输出Mermaid代码)
-                【总评与建议】
-                ...
+                必须严格按照以下格式输出，每一项前面加上【】作为标记：
+                【分数统计】(输出表格)
+                【段落批注】(输出分析)
+                【文章导图】(输出Mermaid代码)
+                【总评与建议】(输出点评)
                 """
                 
-                # 调用 API
-                messages = [{'role': 'user', 'content': [{'image': os.path.abspath(temp_path)}, {'text': prompt}]}]
-                response = MultiModalConversation.call(model='qwen-vl-max', messages=messages)
-                
-                if response.status_code == 200:
-                    # 【核心修复】：在此定义 response_text 变量
-                    response_text = response.output.choices[0].message.content
+                try:
+                    messages = [{'role': 'user', 'content': [{'image': os.path.abspath(temp_path)}, {'text': prompt}]}]
+                    response = MultiModalConversation.call(model='qwen-vl-max', messages=messages)
                     
-                    # 开始切分与展示
-                    sections = response_text.split("【")
-                    
-                    for sec in sections:
-                        if "分数统计" in sec:
-                            st.subheader("📊 分数统计")
-                            st.markdown(sec.replace("分数统计】", "").strip())
-                        elif "段落批注" in sec:
-                            with st.expander("📝 逐段批注分析", expanded=True):
-                                st.markdown(sec.replace("段落批注】", "").strip())
-                        elif "文章导图" in sec:
-                            with st.expander("🧠 文章逻辑思维导图"):
-                                st.code(sec.replace("文章导图】", "").strip(), language="mermaid")
-                        elif "总评与建议" in sec:
-                            st.success("✅ 总评与建议")
-                            st.markdown(sec.replace("总评与建议】", "").strip())
-                else:
-                    st.error(f"识别失败: {response.message}")
-                
-                if os.path.exists(temp_path): os.remove(temp_path)
+                    if response.status_code == 200:
+                        response_text = response.output.choices[0].message.content
+                        
+                        # 【核心修正】：增加安全判断
+                        if "【" in response_text:
+                            sections = response_text.split("【")
+                            for sec in sections:
+                                if "分数统计" in sec:
+                                    st.subheader("📊 分数统计")
+                                    st.markdown(sec.replace("分数统计】", "").strip())
+                                elif "段落批注" in sec:
+                                    with st.expander("📝 逐段批注分析", expanded=True):
+                                        st.markdown(sec.replace("段落批注】", "").strip())
+                                elif "文章导图" in sec:
+                                    with st.expander("🧠 文章逻辑思维导图"):
+                                        st.code(sec.replace("文章导图】", "").strip(), language="mermaid")
+                                elif "总评与建议" in sec:
+                                    st.success("✅ 总评与建议")
+                                    st.markdown(sec.replace("总评与建议】", "").strip())
+                        else:
+                            # 如果 AI 没有按格式输出，直接显示所有内容，避免报错
+                            st.warning("⚠️ AI 返回格式略有不同，已为您完整显示：")
+                            st.markdown(response_text)
+                    else:
+                        st.error(f"识别失败: {response.message}")
+                except Exception as e:
+                    st.error(f"发生错误: {str(e)}")
+                finally:
+                    if os.path.exists(temp_path): os.remove(temp_path)
