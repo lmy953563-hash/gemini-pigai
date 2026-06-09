@@ -3,7 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 
 # 配置 Gemini
-genai.configure(api_key=st.secrets["AQ.Ab8RN6IKDfolU0XqfVG9CWqdIPpXZXsOqiz7QHZ-VmcfCmVgWw"])
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 model = genai.GenerativeModel('gemini-1.5-flash') # 用 flash 模型速度更快且免费额度大
 
 st.title("📸 作文拍照批改助手")
