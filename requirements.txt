@@ -2,3 +2,5 @@ streamlit
 openai
 pillow
 dashscope
+paddleocr
+paddlepaddle
